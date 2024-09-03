@@ -1,7 +1,16 @@
 PROGRESS TRACKING
                                                             Team            Lam             Brooklyn            Audrey              Jon
 Week of 9/1
-    TPS W2 due 9/5 11:59pm                        
+                            
+    
+    TO DO:
+        TPS W2 due 9/5 11:59pm  
+        Meeting with DR. I
+        Collect Sample Data
+        Arm: Embedded Programming
+        Generate different NN architecture: 
+            Reinforcement learning
+            
 
 Week of 8/25
 
