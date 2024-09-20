@@ -19,7 +19,7 @@ for onePort in ports:
     
 print(arduinoPort)
 
-serialInst.baudrate = 9600
+serialInst.baudrate = 115200
 serialInst.port = "COM" + str(arduinoPort)
 
 serialInst.open()
