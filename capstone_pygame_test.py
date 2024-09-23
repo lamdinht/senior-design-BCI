@@ -24,6 +24,35 @@ serialInst.port = "COM" + str(arduinoPort)
 
 serialInst.open()
 
+# LAM'S REVIEW
+
+pygame.init()
+
+window = pygame.display.set_mode((200,100))
+clock = pygame.time.Clock()
+running = True # keep pygame wind. open
+
+'''
+/*  INPUT INCLUDES ANGLES FOR ARM MOVEMENT
+    FORMAT: byte 0 has to be 255          --> Extra layer for error checking 
+            1st byte: M1
+            2nd byte: M2
+            3rd byte: M3
+            4th byte: M4
+            5th byte: M5
+            6th byte: M6
+            ending byte has to be 254     --> Extra layer for error checking 
+    INPUT SEQUENCE EXAMPLE: [255, 90, 90, 90, 90, 90, 73, 254] equivalent to hex: [0xFF, 0x5A, 0x5A, 0x5A, 0x5A, 0x5A, 0x49, 0xFE]
+    BUFFER: [90, 90, 90, 90, 90, 73]
+    OUTPUT: Move arm to position (90, 90, 90, 90, 90, 73)
+'''
+
+currState = [90,90,90,90,90,20] # this is the bootup default arm state
+outputBuffer = [255, 90, 90, 90, 90, 90, 20, 254] # this is the bootup default arm state
+while(True):
+    serialInst.write(outputBuffer)
+
+"""
 #########################################################################################################
 
 pygame.init() # just for keyboard control
@@ -164,3 +193,4 @@ while running:
                 delayTime = time.process_time()
                 updateSerial()
                 lastTime = time.process_time()
+"""

@@ -49,10 +49,10 @@ Servo gripper;
       reset buffer
 */
 
-int m1 = 0, m2 = 45, m3 = 45, m4 = 45, m5 = 90, m6 = 73;
+int m1 = 90, m2 = 90, m3 = 90, m4 = 90, m5 = 90, m6 = 73;
 int servo_delay = 10;
 
-char* buffer[SPTR_SIZE - 1];
+char* buffer[BUFFER_SIZE];
 
 String M1_str;
 String M2_str;
@@ -63,7 +63,7 @@ String M6_str;
 
 void setup() {
   Braccio.begin();
-  Serial.begin(115200);
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -77,24 +77,24 @@ void loop() {
   // Else
   //    reset buffer
 
-  if (Serial.available() > 0) {
-    if (Serial.read() == 255) {
-      for (int i = 0; i < BUFFER_SIZE; i++) {
-        buffer[i] = Serial.read();
-      }
-      if (Serial.read() == 254) {
-        m1 = buffer[0];
-        m2 = buffer[1];
-        m3 = buffer[2];
-        m4 = buffer[3];
-        m5 = buffer[4];
-        m6 = buffer[5];        
-        Braccio.ServoMovement(servo_delay, m1, m2, m3, m4, m5, m6);
-      } else {
-        for (int i = 0; i < BUFFER_SIZE; i++) {
-          buffer[i] = 0;
-        }
-      }
+  int counter = 0;
+  bool writing_enabled = false;
+
+  if (Serial.available()) {
+    Serial.print("There is something.\n");
+    int temp = Serial.read();
+    Serial.print(temp);
+    if (temp == 200) {
+      writing_enabled = true;
+    }
+    else if (temp == 199){
+      Braccio.ServoMovement(servo_delay, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
+      writing_enabled = false;
+      counter = 0;
+    }
+    else{
+      if (writing_enabled)
+        buffer[counter++] = temp;
     }
   } 
 }

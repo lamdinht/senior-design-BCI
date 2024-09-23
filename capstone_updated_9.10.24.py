@@ -16,11 +16,12 @@ for onePort in ports:
     
 print(arduinoPort)
 
+# LAM'S REVIEW
 serialInst.baudrate = 9600
 serialInst.port = "COM" + str(arduinoPort)
 
 serialInst.open()
-
+'''
 ###############################################
 prevStr = "180,90,90,90,90,10" # this is the bootup default arm state
 prevStr = prevStr.replace(" ", "") # remove any spaces if present
@@ -49,3 +50,4 @@ while True:
         cond2 = input("Whatever condition read and do\n")
 
 # write a state that basically if we take in s1,s2,...,sn, and only s2 changes, we save the previous state and ONLY update s2.
+'''
