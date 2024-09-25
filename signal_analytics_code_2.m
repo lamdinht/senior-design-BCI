@@ -1,34 +1,21 @@
 
-streams = load_xdf( "E:\Villanova\human-brain-interface\senior-design-BCI\Dataset\Lam_9_23\sub-P001\ses-S004 - push\eeg\" + ...
-                    "sub-P001_ses-S004 - push_task-Default_run-001_eeg.xdf");
+streams = load_xdf("E:\Villanova\human-brain-interface\senior-design-BCI\Dataset\Lam_9_23\sub-P001\ses-S003 - eyes open\eeg\sub-P001_ses-S003 - eyes open _task-Default_run-001_eeg.xdf");
 
-eeg_time_series = [];
-eeg_time_stamps = [];
-
-marker_time_series = [];
-marker_time_stamps = [];
+eeg_time_series = 0;
+eeg_time_stamps = 0;
 
 
 %% COMBINE TIME STREAMS
 for i = 1:size(streams,2)
     if strcmp(streams{i}.info.type ,'EEG')
-        eeg_time_series = [eeg_time_series streams{i}.time_series];
-        eeg_time_stamps = [eeg_time_stamps streams{i}.time_stamps];
-    end
-
-    if strcmp(streams{i}.info.type, 'Markers')
-       marker_time_series = [marker_time_series streams{i}.time_series];
-       marker_time_stamps = [marker_time_stamps streams{i}.time_stamps];
+        eeg_time_series = [eeg_time_series(:,1:end-1) streams{i}.time_series(:,1:end-1)];
+        eeg_time_stamps = [eeg_time_stamps(:,1:end-1) streams{i}.time_stamps(:,1:end-1)];
     end
 end
 
-marker_time_stamps = marker_time_stamps - marker_time_stamps(1);
 eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
 
 %% Preliminary Process:
-%    - Recenter signal: subtracting mean from array
-%    - Reject powerline: notch from 59.9 to 60.1hz
-
 %    - Plot fft and time series of all bands
 %    - Recenter data by subtracting the average, plot fft and time series
 %    - Focus on 0 to 20Hz on another graph
