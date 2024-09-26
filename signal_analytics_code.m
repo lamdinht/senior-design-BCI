@@ -168,11 +168,11 @@ end
 %% PROCESS DATA FROM CSV
 fs = 256;
 import_csv = true;
-csv_file = "segment14.csv";
+csv_file = "segment12";
 
 % Step 1: Import the CSV file
 if import_csv
-    data = csvread(csv_file); 
+    data = csvread(csv_file + ".csv"); 
 end
 
 % Step 2: Separate the timestamps and EEG time series
@@ -185,6 +185,7 @@ timestamps = timestamps - timestamps(1);
 % Step 4: Determine subplot size (2 columns by number of channels)
 num_channels = size(eeg_time_series, 1);
 num_subplots = num_channels * 2;  % Two subplots per channel (time series and PSD)
+set(gcf, 'Position', get(0, 'Screensize'));  % Maximize figure window
 
 % Step 5: Initialize output for wave powers
 output_band_powers = [];
@@ -237,6 +238,8 @@ for ch = 1:num_channels
     % Append the band powers to the output
     output_band_powers = [output_band_powers; delta_power, theta_power, alpha_power, beta_power, gamma_power];
 end
+
+saveas(gcf, filename + ".png");
 
 % Step 7: Prepare the data for appending
 output_table = [(1:num_channels)', output_band_powers]; % Channel numbers and band powers
