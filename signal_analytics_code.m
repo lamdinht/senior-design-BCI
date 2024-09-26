@@ -25,6 +25,67 @@ end
 marker_time_stamps = marker_time_stamps - marker_time_stamps(1);
 eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
 
+
+%% Segment Data:
+%      Run this if you're dealing with data with timestamps.
+%      This code will separate eeg data into smaller chunks between
+%      timestamps, and save each chunk into a .csv file
+%      
+% Variables (assumed to be given):
+% eeg_time_stamps: an array of size (1, n) (time points for each sample)
+% eeg_time_series: an array of size (channels, n) (EEG data for each channel)
+% marker_time_stamps: an array of size (1, m)
+% marker_time_series: a cell array of size (1, m) (markers for events)
+
+% Predefine output structure
+output = [];
+
+% Initialize the segment counter
+segment_counter = 1;
+
+% Loop through the marker_time_series
+for i = 1:length(marker_time_series)
+    % Check if the current marker contains 'released'
+    if contains(marker_time_series{i}, 'released')
+
+        % If i is the last marker, stop to avoid out-of-bounds error
+        if i == length(marker_time_series)
+            disp('Reached the last marker, stopping...');
+            break;
+        end
+
+        % Get time_start and time_stop
+        time_start = marker_time_stamps(i);  % When recording starts
+        time_stop = marker_time_stamps(i+1); % When recording stops
+
+        % Get the indexes of the EEG time stamps within this range
+        eeg_indexes = find(eeg_time_stamps > time_start & eeg_time_stamps < time_stop);
+        
+
+        % If there are valid indexes, proceed
+        if ~isempty(eeg_indexes)
+            % Get the time stamps for the segment
+            segment_time_stamps = eeg_time_stamps(eeg_indexes);
+            
+            % Get the corresponding EEG data for all channels
+            segment_eeg_data = eeg_time_series(:, eeg_indexes);
+
+            % Concatenate time stamps as the first row and EEG data below
+            output = [segment_time_stamps; segment_eeg_data];
+
+            % Create the CSV filename for this segment
+            filename = ['segment' num2str(segment_counter) '.csv'];
+
+            % Write the output to CSV
+            csvwrite(filename, output);
+
+            % Increment the segment counter for the next segment
+            segment_counter = segment_counter + 1;
+        end
+    end
+end
+
+
 %% Preliminary Process:
 %    - Recenter signal: subtracting mean from array
 %    - Reject powerline: notch from 59.9 to 60.1hz
