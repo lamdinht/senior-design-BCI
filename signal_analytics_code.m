@@ -184,7 +184,7 @@ end
 %% PROCESS DATA FROM CSV
 fs = 256;
 import_csv = true;
-csv_file = "segment16";
+csv_file = "A1Push";
 
 % Step 1: Import the CSV file
 if import_csv
@@ -275,3 +275,59 @@ else
     fclose(fid);
     dlmwrite(filename, output_table, '-append');
 end
+
+%% PARSE CSV FOR NN TRAINING
+% Load the dataset from CSV file
+filename = 'A1Push.csv'; % Replace with the actual file name
+data = readtable(filename); % Read the CSV file into a table
+
+% Extract data columns (assuming structure: time, 4 EEG channels, auxiliary channel)
+timestamps = data{:, 1};      % First column: timestamps
+eeg_data = data{:, 2:5};      % Next four columns: EEG channels
+aux_data = data{:, 6};        % Last column: auxiliary channel
+
+% Define the number of data points in each section and step size
+section_size = 256;
+step_size = 64;
+
+% Read the counter from a text file
+counter_file = 'counter.txt';
+if exist(counter_file, 'file')
+    fid = fopen(counter_file, 'r');
+    counter = fscanf(fid, '%d');
+    fclose(fid);
+else
+    % If the file doesn't exist, initialize the counter at 1
+    counter = 1;
+end
+
+% Create folder for training data if it does not exist
+if ~exist('training', 'dir')
+    mkdir('training');
+end
+
+% Iterate over the dataset, incrementing by 64 data points
+for idx = 1:step_size:(height(data) - section_size + 1)
+    
+    % Extract the section of 256 data points (timestamps, EEG data, auxiliary channel)
+    section_timestamps = timestamps(idx:(idx + section_size - 1));
+    section_eeg_data = eeg_data(idx:(idx + section_size - 1), :);
+    section_aux_data = aux_data(idx:(idx + section_size - 1));
+    
+    % Combine the extracted section into a single matrix
+    section_data = [section_timestamps, section_eeg_data, section_aux_data];
+    
+    % Name and save the section in the training folder
+    training_filename = sprintf('training/%s_%d.csv', filename, counter);
+    writetable(array2table(section_data), training_filename);
+    
+    % Increment the counter for the next file
+    counter = counter + 1;
+    
+    % Save the updated counter back to the text file
+    fid = fopen(counter_file, 'w');
+    fprintf(fid, '%d', counter);
+    fclose(fid);
+end
+
+disp('Processing complete!');

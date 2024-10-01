@@ -184,7 +184,7 @@ end
 %% PROCESS DATA FROM CSV
 fs = 256;
 import_csv = true;
-csv_file = "segment16";
+csv_file = "A1Push";
 
 % Step 1: Import the CSV file
 if import_csv
@@ -275,3 +275,56 @@ else
     fclose(fid);
     dlmwrite(filename, output_table, '-append');
 end
+
+%% PARSE CSV FOR NN TRAINING
+
+% Load the dataset from CSV file
+filename = 'A2Push.csv'; % Replace with the actual file name
+data = readtable(filename); % Read the CSV file into a table
+
+% Extract timestamps and EEG data (assuming columns: time, EEG1, EEG2, EEG3, EEG4)
+timestamps = data{:, 1}; % Assuming first column is time
+eeg_data = data{:, 2:5}; % Assuming next four columns are EEG channels
+
+% Read the counter from a text file
+counter_file = 'counter.txt';
+if exist(counter_file, 'file')
+    fid = fopen(counter_file, 'r');
+    counter = fscanf(fid, '%d');
+    fclose(fid);
+else
+    % If the file doesn't exist, initialize the counter at 1
+    counter = 1;
+end
+
+% Parameters
+time_step = 0.2; % Step size of 0.2 seconds
+window_size = 1; % Analyze in 1-second windows
+
+% Create folder for training data if it does not exist
+if ~exist('training', 'dir')
+    mkdir('training');
+end
+
+% Iterate over timestamps with step size of 0.2s
+for t = min(timestamps):time_step:(max(timestamps)-window_size)
+    
+    % Get the data in the time window [t to t+1]
+    section_indices = (timestamps >= t & timestamps < t + window_size);
+    section_data = eeg_data(section_indices, :);
+    section_timestamps = timestamps(section_indices);
+    
+    % Name and save the data in the training folder
+    training_filename = sprintf('training/%s_%d.csv', filename, counter);
+    writetable(array2table([section_timestamps, section_data]), training_filename);
+    
+    % Increment the counter for the next file
+    counter = counter + 1;
+    
+    % Save the updated counter back to the text file
+    fid = fopen(counter_file, 'w');
+    fprintf(fid, '%d', counter);
+    fclose(fid);
+end
+
+disp('Processing complete!');
