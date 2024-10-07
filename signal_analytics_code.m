@@ -1,6 +1,6 @@
 
-streams = load_xdf( "E:\Villanova\human-brain-interface\senior-design-BCI\Dataset\Audrey_9_26\sub-P001\ses-S003 - eyes closed push\eeg\" + ...
-                    "sub-P001_ses-S003 - eyes closed push_task-Default_run-001_eeg.xdf");
+streams = load_xdf( "E:\Villanova\human-brain-interface\senior-design-BCI\Dataset\Audrey_9_26\sub-P001\ses-S002 - resting eyes open\eeg" + ...
+                    "sub-P001_ses-S002 - resting eyes open_task-Default_run-001_eeg.xdf");
 
 eeg_time_series = [];
 eeg_time_stamps = [];
@@ -11,21 +11,39 @@ marker_time_stamps = [];
 
 
 %% COMBINE TIME STREAMS
+
+has_marker = false;
+
 for i = 1:size(streams,2)
     if strcmp(streams{i}.info.type ,'EEG')
         eeg_time_series = [eeg_time_series streams{i}.time_series];
         eeg_time_stamps = [eeg_time_stamps streams{i}.time_stamps];
     end
-
+    
     if strcmp(streams{i}.info.type, 'Markers')
-       marker_time_series = [marker_time_series streams{i}.time_series];
-       marker_time_stamps = [marker_time_stamps streams{i}.time_stamps];
+        marker_time_series = [marker_time_series streams{i}.time_series];
+        marker_time_stamps = [marker_time_stamps streams{i}.time_stamps];
     end
 end
 
-marker_time_stamps = marker_time_stamps - marker_time_stamps(1);
-eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
+if has_marker
+    marker_time_stamps = marker_time_stamps - marker_time_stamps(1);
+    eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
+else
+    eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
+    % Combine the eeg_time_stamps and eeg_time_series
+    combined_data = [eeg_time_stamps; eeg_time_series];
+    
+    % Define the filename for saving
+    filename = 'eeg_combined_data.csv'; % Specify the desired filename
+    
+    % Save the combined data as a CSV file
+    writematrix(combined_data, filename);
+    
+    disp('Data has been successfully saved as CSV!');
+end
 
+%% If has marker, run this chunk of code.
 
 % Variables (assumed to be given):
 % eeg_time_stamps: an array of size (1, n) (time points for each sample)
@@ -278,56 +296,47 @@ end
 
 %% PARSE CSV FOR NN TRAINING
 % Load the dataset from CSV file
-filename = 'A1Push.csv'; % Replace with the actual file name
-data = readtable(filename); % Read the CSV file into a table
+filename = 'eeg_combined_data.csv'; % Replace with the actual file name
+data = readtable(filename, 'ReadVariableNames', false); % Read the CSV file into a table
 
-% Extract data columns (assuming structure: time, 4 EEG channels, auxiliary channel)
-timestamps = data{:, 1};      % First column: timestamps
-eeg_data = data{:, 2:5};      % Next four columns: EEG channels
-aux_data = data{:, 6};        % Last column: auxiliary channel
+% Convert table to array for easier indexing
+data = table2array(data);
+
+% Extract data rows (assuming structure: time (row 1), 4 EEG channels (rows 2-5), auxiliary channel (row 6))
+timestamps = data(1, :);     % First row: timestamps
+eeg_data = data(2:5, :);     % Rows 2 to 5: EEG channels
+aux_data = data(6, :);       % Last row: auxiliary channel
 
 % Define the number of data points in each section and step size
 section_size = 256;
 step_size = 64;
+counter = 1; % Initialize counter
 
-% Read the counter from a text file
-counter_file = 'counter.txt';
-if exist(counter_file, 'file')
-    fid = fopen(counter_file, 'r');
-    counter = fscanf(fid, '%d');
-    fclose(fid);
-else
-    % If the file doesn't exist, initialize the counter at 1
-    counter = 1;
-end
+% Total number of data points (columns)
+total_data_points = size(data, 2);
 
 % Create folder for training data if it does not exist
 if ~exist('training', 'dir')
     mkdir('training');
 end
 
-% Iterate over the dataset, incrementing by 64 data points
-for idx = 1:step_size:(height(data) - section_size + 1)
+% Iterate over the dataset, incrementing by 64 columns
+for idx = 1:step_size:(total_data_points - section_size + 1)
     
-    % Extract the section of 256 data points (timestamps, EEG data, auxiliary channel)
+    % Extract the section of 256 data points (columns)
     section_timestamps = timestamps(idx:(idx + section_size - 1));
-    section_eeg_data = eeg_data(idx:(idx + section_size - 1), :);
-    section_aux_data = aux_data(idx:(idx + section_size - 1));
+    section_eeg_data = eeg_data(:, idx:(idx + section_size - 1));
+    section_aux_data = aux_data(:, idx:(idx + section_size - 1));
     
-    % Combine the extracted section into a single matrix
-    section_data = [section_timestamps, section_eeg_data, section_aux_data];
+    % Combine the extracted section into a single matrix (concatenate rows)
+    section_data = [section_timestamps; section_eeg_data; section_aux_data];
     
     % Name and save the section in the training folder
     training_filename = sprintf('training/%s_%d.csv', filename, counter);
-    writetable(array2table(section_data), training_filename);
+    writematrix(section_data, training_filename);
     
     % Increment the counter for the next file
     counter = counter + 1;
-    
-    % Save the updated counter back to the text file
-    fid = fopen(counter_file, 'w');
-    fprintf(fid, '%d', counter);
-    fclose(fid);
 end
 
 disp('Processing complete!');
