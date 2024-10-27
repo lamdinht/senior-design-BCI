@@ -1,7 +1,6 @@
+filename = "Audrey_3";
 
-streams = load_xdf( "E:\Villanova\human-brain-interface\senior-design-BCI\Dataset\Audrey_9_26\sub-P001\ses-S002 - resting eyes open\eeg" + ...
-                    "sub-P001_ses-S002 - resting eyes open_task-Default_run-001_eeg.xdf");
-
+streams = load_xdf(filename + ".xdf");
 eeg_time_series = [];
 eeg_time_stamps = [];
 
@@ -13,6 +12,7 @@ marker_time_stamps = [];
 %% COMBINE TIME STREAMS
 
 has_marker = false;
+write_to_csv = false;
 
 for i = 1:size(streams,2)
     if strcmp(streams{i}.info.type ,'EEG')
@@ -21,7 +21,6 @@ for i = 1:size(streams,2)
     end
     
     if strcmp(streams{i}.info.type, 'Markers')
-        has_marker = true;
         marker_time_series = [marker_time_series streams{i}.time_series];
         marker_time_stamps = [marker_time_stamps streams{i}.time_stamps];
     end
@@ -31,8 +30,19 @@ if has_marker
     marker_time_stamps = marker_time_stamps - marker_time_stamps(1);
     eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
 else
-    eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
-    
+    if write_to_csv
+        eeg_time_stamps = eeg_time_stamps - eeg_time_stamps(1);
+        % Combine the eeg_time_stamps and eeg_time_series
+        combined_data = [eeg_time_stamps; eeg_time_series];
+        
+        % Define the filename for saving
+        filename = 'eeg_combined_data.csv'; % Specify the desired filename
+        
+        % Save the combined data as a CSV file
+        writematrix(combined_data, filename);
+        
+        disp('Data has been successfully saved as CSV!');
+    end
 end
 
 %% If has marker, run this chunk of code.
@@ -113,6 +123,7 @@ end
 
 
 %% Preliminary Process:
+
 %    - Recenter signal: subtracting mean from array
 %    - Reject powerline: notch from 59.9 to 60.1hz
 
@@ -288,7 +299,7 @@ end
 
 %% PARSE CSV FOR NN TRAINING
 % Load the dataset from CSV file
-filename = 'A1Push.csv'; % Replace with the actual file name
+filename = 'eeg_combined_data.csv'; % Replace with the actual file name
 data = readtable(filename, 'ReadVariableNames', false); % Read the CSV file into a table
 
 % Convert table to array for easier indexing
@@ -332,3 +343,90 @@ for idx = 1:step_size:(total_data_points - section_size + 1)
 end
 
 disp('Processing complete!');
+
+%% UPDATE 10/7/2024
+%   DATA MANIPULATION FOR MACHINE LEARNING
+%   Process:
+%   - Load XDF, get eeg & marker streams
+%   - Cancel first/last data points accordingly
+%   - For each XDF:
+%       Extract 256 data points
+%       Bandpass 1Hz to 30Hz
+%       Combine 4 channel data at 256 data points into vector size of 1024
+%       Save as csv
+
+% Parameters (Set these as needed)
+fs = 256;              % Sampling rate in Hz
+a = 1;                 % Lower cutoff frequency for bandpass filter (Hz)
+b = 30;                % Upper cutoff frequency for bandpass filter (Hz)
+num_start = 1024;      % Number of data points to remove from the start
+num_end = 256;         % Number of data points to remove from the end
+window_size = 256;     % Window size for each segment
+overlap_percentage = 0.75;  % Overlap percentage (e.g., 0.75 for 75% overlap)
+
+% Define your actual file name
+original_file_name = 'Audrey_3';  % Replace with your actual file name
+
+% Calculate overlap size
+overlap_size = floor(overlap_percentage * window_size);
+step_size = window_size - overlap_size;  % The step size for moving the window
+
+% Ensure the required directories exist
+if ~exist('time_domain', 'dir')
+    mkdir('time_domain');
+end
+if ~exist('frequency_domain', 'dir')
+    mkdir('frequency_domain');
+end
+
+% Assume eeg_time_series and eeg_time_stamps are loaded into the workspace
+% eeg_time_series: 5 x n matrix
+% eeg_time_stamps: 1 x n vector
+
+% Remove unwanted data points from the start and end
+eeg_time_series = eeg_time_series(:, num_start+1:end-num_end);
+eeg_time_stamps = eeg_time_stamps(num_start+1:end-num_end);
+
+% Determine number of segments based on step size
+total_points = size(eeg_time_series, 2);
+num_segments = floor((total_points - window_size) / step_size) + 1;
+
+% Bandpass filter design
+[b_bp, a_bp] = butter(2, [a b]/(fs/2), 'bandpass');
+
+% Process each segment with overlap
+for i = 1:num_segments
+    % Calculate start and end indices of the current window
+    idx_start = (i-1)*step_size + 1;
+    idx_end = idx_start + window_size - 1;
+
+    % Check if idx_end exceeds the total data points
+    if idx_end > total_points
+        idx_end = total_points;
+        idx_start = total_points - window_size + 1;  % Adjust idx_start accordingly
+    end
+
+    % Extract segment for channels 1 to 4
+    segment = eeg_time_series(1:4, idx_start:idx_end);
+
+    % Apply bandpass filter to each channel
+    filtered_segment = zeros(size(segment));
+    for ch = 1:4
+        filtered_segment(ch, :) = filtfilt(b_bp, a_bp, segment(ch, :));
+    end
+
+    % Combine 4 channels into a vector of size 1024
+    time_domain_vector = reshape(filtered_segment, [], 1);
+
+    % Save time-domain data as CSV
+    time_domain_filename = fullfile('time_domain', [original_file_name '_' num2str(i) '.csv']);
+
+    % Debug statements
+    disp(['Time domain filename: ', time_domain_filename]);
+    disp(['Class of time_domain_filename: ', class(time_domain_filename)]);
+
+    % Save the data
+    csvwrite(time_domain_filename, time_domain_vector);
+
+    % ... rest of the code ...
+end
