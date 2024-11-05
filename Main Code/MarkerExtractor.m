@@ -52,8 +52,9 @@
 
 
 %% FILE LOADING
-eegFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00.md.pm.bp.csv';
-markersFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00_intervalMarker.csv';
+eegFile = 'Resting+word Generation_EPOCX_242571_2024.11.03T16.56.28.05.00.md.csv';
+markersFile = 'Resting+word Generation_EPOCX_242571_2024.11.03T16.56.28.05.00_intervalMarker.csv';
+
 % Extract base name of the EEG file to include in segment filenames
 [~, eegBaseName, ~] = fileparts(eegFile);
 
