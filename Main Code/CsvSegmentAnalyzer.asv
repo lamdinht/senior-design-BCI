@@ -1,0 +1,95 @@
+% Read the CSV file
+input_file = 'non_marker_1572.csv';
+eeg_data = readmatrix(input_file);
+%%
+% Define the sampling frequency (fs)
+fs = 128;  % For example, 128 Hz
+
+% Subtract mean from each channel
+eeg_data_preprocessed = eeg_data - mean(eeg_data);
+
+figure;
+tiledlayout(4, 4);
+for i = 1:14
+    nexttile;
+    hold on;
+    plot(eeg_data_preprocessed(:, i));
+    hold off;
+    title(['Channel ', num2str(i)]);
+    ylabel('Amplitude');
+    xlabel('Time [samples]');
+end
+sgtitle('Preprocessed EEG Data in Time Domain');
+
+%%
+% Bandpass filter from 0.5 Hz to 60 Hz
+%bpFilt = designfilt('bandpassiir', 'FilterOrder', 4, 'HalfPowerFrequency1', 0.5, 'HalfPowerFrequency2', 60, 'SampleRate', fs);
+%eeg_data_filtered = filtfilt(bpFilt, eeg_data);
+
+% Define STFT parameters
+nperseg = 64;  % Length of each segment
+overlap = 48;   % Overlap between segments
+
+% Prepare the figure
+figure;
+tiledlayout(4, 4);
+
+% Perform STFT on each channel and plot
+for i = 1:14
+    channel_data = eeg_data_preprocessed(:, i);
+    nexttile;
+    stft(channel_data, fs, 'Window', hann(nperseg), 'OverlapLength', overlap, 'FFTLength', nperseg);
+end
+
+% Hide the last two subplots (since there are only 14 channels)
+for i = 15:16
+    nexttile;
+    axis off;
+end
+sgtitle('STFT of EEG Channels');
+
+% Plot filtered data in time domain in a new window
+fig2 = figure;
+tiledlayout(4, 4);
+for i = 1:14
+    nexttile;
+    plot(eeg_data_filtered(:, i));
+    title(['Channel ', num2str(i)]);
+    ylabel('Amplitude');
+    xlabel('Time [samples]');
+end
+sgtitle('Filtered EEG Data in Time Domain');
+
+%%
+% Plot random 6 CSVs in the folder for each channel in separate subplots
+csv_files = dir(fullfile('*.csv'));
+num_files = min(6, length(csv_files));
+fig4 = figure;
+tiledlayout(4, 4);
+
+% Loop over each channel
+for ch = 1:14
+    nexttile;
+    hold on;
+    % Plot each CSV's data for the current channel
+    for i = 1:num_files
+        eeg_data = readmatrix(fullfile(csv_files(i).folder, csv_files(i).name));
+        eeg_data_filtered = filtfilt(bpFilt, eeg_data);
+        plot(eeg_data_filtered(:, ch));
+    end
+    hold off;
+    title(['Channel ', num2str(ch), ' across 6 CSVs']);
+    ylabel('Amplitude');
+    xlabel('Time [samples]');
+end
+
+% Hide the last two subplots (since there are only 14 channels)
+for i = 15:16
+    nexttile;
+    axis off;
+end
+
+sgtitle('Filtered EEG Data from 6 Random CSVs by Channel');
+
+
+

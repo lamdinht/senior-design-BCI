@@ -1,49 +1,59 @@
-% Load EEG data and marker information from CSV files
-eegData = readmatrix('Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00.md.pm.bp.csv');  % Replace with actual filename
-markers = readmatrix('Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00_intervalMarker.csv');   % Replace with actual filename
+%% FILE LOADING
+eegFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00.md.pm.bp.csv';
+markersFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00_intervalMarker.csv';
 
-samplingRate = 256;  % Replace with your EEG data's sampling rate (samples per second)
+%%
+
+% Load EEG data and marker information from CSV files
+eegData = readtable(eegFile);  % EEG data file
+markers = readtable(markersFile);  % Markers file
+
+samplingRate = 256;  % Sampling rate (samples per second)
 segmentDuration = 1; % 1-second duration for each segment
 timeAxis = (0:1/samplingRate:(segmentDuration - 1/samplingRate));  % Time vector for plotting
 
 % Create output folder if it doesn't exist
 outputFolder = 'eyeblinks';
 if ~exist(outputFolder, 'dir')
-% Define parameters
     mkdir(outputFolder);
 end
 
 % Process each marker
-for i = 1:length(markers)
-    % Get marker time and calculate start and end sample indices
-    markerTime = markers(i);
-    startSample = round(markerTime * samplingRate);
-    endSample = startSample + segmentDuration * samplingRate - 1;
+for i = 1:height(markers)
+    % Get marker timestamp from 'timestamp' column
+    markerTime = markers.timestamp(i);  % Assuming the 'timestamp' column is named 'timestamp'
     
-    % Check for bounds to avoid out-of-range indices
-    if endSample > size(eegData, 1)
+    % Find EEG data within the range of markerTime to markerTime + 1 second
+    segmentIndices = eegData.Timestamp >= markerTime & eegData.Timestamp < (markerTime + segmentDuration);
+    segmentData = eegData{segmentIndices, 5:18};  % Extracting columns 5 to 18 for EEG channels and converting to array
+    
+    % Check if sufficient data is available
+    if isempty(segmentData)
         warning('Skipping marker at %.2f seconds: Insufficient data for 1 second window.', markerTime);
         continue;
     end
     
-    % Extract 1-second segment for all channels
-    segmentData = eegData(startSample:endSample, :);
-    
     % Save the segment to a CSV file
-    filename = sprintf('%s/eyeblink_%d.csv', outputFolder, i);
+    markerType = string(markers{i, 'type'});  % Assuming the marker type is in the 'type' column
+    typeFolder = fullfile(outputFolder, sprintf('type_%s', markerType));
+    if ~exist(typeFolder, 'dir')
+        mkdir(typeFolder);
+    end
+    filename = sprintf('%s/eyeblink_%d.csv', typeFolder, i);
     writematrix(segmentData, filename);
 
     % Generate legend labels for the 14-channel EEG system
-    legendLabels = arrayfun(@(x) sprintf('Channel %d', x), 1:14, 'UniformOutput', false);
+    numChannels = size(segmentData, 2);  % Get the actual number of channels in the data
+    legendLabels = arrayfun(@(x) sprintf('Channel %d', x), 1:numChannels, 'UniformOutput', false);
 
     % Plot the segment
-    figure;
-    plot(timeAxis, segmentData);
-    title(sprintf('EEG Segment Around Marker %d (%.2f seconds)', i, markerTime));
-    xlabel('Time (s)');
-    ylabel('Amplitude');
-    legend(legendLabels); % Add more channels as needed
-    grid on;
+% figure;
+% plot(timeAxis(1:size(segmentData, 1)), segmentData);
+% title(sprintf('EEG Segment Around Marker %d (%.2f seconds)', i, markerTime));
+% xlabel('Time (s)');
+% ylabel('Amplitude');
+% legend(legendLabels);
+% grid on;
 end
 
 disp('Eyeblink segments have been saved and plotted.');
