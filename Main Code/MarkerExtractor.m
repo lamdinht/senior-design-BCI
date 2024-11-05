@@ -52,8 +52,10 @@
 
 
 %% FILE LOADING
-eegFile = 'Resting+S7_EPOCX_242571_2024.10.27T15.29.19.05.00.md.bp.csv';
-markersFile = 'Resting+S7_EPOCX_242571_2024.10.27T15.29.19.05.00_intervalMarker.csv';
+eegFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00.md.pm.bp.csv';
+markersFile = 'Eyeblinks_EPOCX_242013_2024.10.24T13.35.44.04.00_intervalMarker.csv';
+% Extract base name of the EEG file to include in segment filenames
+[~, eegBaseName, ~] = fileparts(eegFile);
 
 %% MARKER TIMESTAMPS
 %       RUN THIS CODE FOR:
@@ -207,8 +209,8 @@ for i = 1:numMarkers
     % Extract segment data based on start and end samples
     segmentData = eegData(startSample:endSample, :);
     
-    % Define the filename based on the marker's type
-    filename = sprintf('%s/%s_segment_%d.csv', typeFolder, segmentType, i);
+    % Define the filename based on the marker's type and EEG file name
+    filename = sprintf('%s/%s_%s_segment_%d.csv', typeFolder, eegBaseName, segmentType, i);
     writetable(segmentData, filename);
     
     fprintf('Segment %d of type "%s" saved from %.2f to %.2f seconds in folder %s.\n', i, segmentType, startTime, endTime, typeFolder);

@@ -48,7 +48,7 @@ for ch = 1:14
     ylabel('Frequency (Hz)');
     ylim([0 20]); % Focus on 0 to 20 Hz frequency range
     colorbar;
-    caxis([-30, 0]); % Set color axis limits from -60 to 0 dB
+    caxis([-30, 0]); % Set color axis limits from -30 to 0 dB
 
     % PSD plot
     subplot(14, 2, 2*ch); % Plot PSD next to each spectrogram
