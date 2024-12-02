@@ -52,13 +52,13 @@
 
 
 %% FILE LOADING
-eegFile = 'Resting+word Generation_EPOCX_242571_2024.11.03T16.56.28.05.00.md.csv';
-markersFile = 'Resting+word Generation_EPOCX_242571_2024.11.03T16.56.28.05.00_intervalMarker.csv';
+eegFile = 'Neutral + Push_EPOCX_242571_2024.11.21T13.40.43.05.00.md.csv';
+markersFile = 'Neutral + Push_EPOCX_242571_2024.11.21T13.40.43.05.00_intervalMarker.csv';
 
 % Extract base name of the EEG file to include in segment filenames
 [~, eegBaseName, ~] = fileparts(eegFile);
 
-%% MARKER TIMESTAMPS
+%% MARKER, BEGINNING ONLY + Segment
 %       RUN THIS CODE FOR:
 %           extracting a FIXED segment AT EACH MARKER
 
@@ -152,7 +152,7 @@ end
 
 disp('Eyeblink and non-marker segments have been saved.');
 
-%% Continuous Marker Segment
+%% Marker, beginning only
 %       RUN THIS CODE FOR:
 %           Extracting EEG at a marker until the next marker appears
 
@@ -218,3 +218,55 @@ for i = 1:numMarkers
 end
 
 disp('All segments have been saved.');
+
+%% Segment, all csv
+% Define the folder containing CSV files as the current directory
+folderPath = pwd;
+
+% Get list of all CSV files in the folder
+csvFiles = dir(fullfile(folderPath, '*.csv'));
+
+% Create folder for segmented data if it doesn't exist
+segmentedFolderPath = fullfile(folderPath, 'segmented_data');
+if ~exist(segmentedFolderPath, 'dir')
+    mkdir(segmentedFolderPath);
+end
+
+% Process each CSV file in the folder
+for i = 1:length(csvFiles)
+    processFile(fullfile(folderPath, csvFiles(i).name), segmentedFolderPath);
+end
+
+function processFile(filePath, segmentedFolderPath)
+    % Read the CSV file
+    data = readmatrix(filePath);
+
+    % Extract EEG data (columns 5 to 18) and timestamp (column 1)
+    eegData = data(:, 5:18);
+    timestamps = data(:, 1);
+
+    % Define segment length and overlap
+    segmentLength = 128;
+    overlap = 0.8;
+    stepSize = round(segmentLength * (1 - overlap));
+
+    % Segment the data with overlap
+    numSegments = floor((size(eegData, 1) - segmentLength) / stepSize) + 1;
+    [~, fileName, ~] = fileparts(filePath);
+
+    for j = 1:numSegments
+        % Extract the segment of 128 rows with overlap
+        startIdx = (j-1) * stepSize + 1;
+        endIdx = startIdx + segmentLength - 1;
+        segmentData = eegData(startIdx:endIdx, :);
+        segmentTimestamp = timestamps(startIdx:endIdx);
+
+        % Combine data and timestamp (data first, timestamp last)
+        combinedSegment = [segmentData, segmentTimestamp];
+
+        % Create new CSV file for each segment
+        segmentFileName = sprintf('%s_segment_%d.csv', fileName, j);
+        segmentFilePath = fullfile(segmentedFolderPath, segmentFileName);
+        writematrix(combinedSegment, segmentFilePath);
+    end
+end
