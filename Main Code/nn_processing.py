@@ -6,20 +6,35 @@ import tensorflow as tf
 import numpy as np
 from keras import saving, Model
 import time
-# from multiprocessing.connection import Client
+from multiprocessing.connection import Client
+
 #############################################################################
-# conn = Client(('localhost', 6000), authkey=b'secret password') # make this program a client
+# comment below line out to ignore socket comms for now
+conn = Client(('localhost', 6000), authkey=b'secret password') # make this program a client. TURN ON SERVER FIRST (nn emotiv adjusted.py) IN ORDER FOR THIS CODE TO RUN; WILL OTHERWISE RECEIEVE ERROR WHEN TRYING TO HANDSHAKE
+#############################################################################
 
 loopMax = 156 # max iterations
-maxEle = 19968 # = 128*156
+maxEle = 768 #19968 # = 128*156
 offset = 83 # offset number of elements from the beginning
+
 buffer = np.zeros((14, maxEle)); # creates 4(rows)x19,968(columns) array of zeroes
 nnBuffer = np.zeros((128, 9, 9)) # creates 128 sets of 9(rows)x9(columns) arrays
 nnOutput = np.zeros((2,2))
+
 timeStart = 0.0
 timeEnd = 0.0
+
+ctFlag = 0 # keep count of iterations
+ctOut = np.zeros((1,20))
+threshold = 0.70 # >= 80% means that it is a push signal
+poolPos = 0 # counts number of times predict >= threshold
+poolNeg = 0 # counts number of times predict < threshold
+poolSize = 20 # number of pooled predicts per output to the Arm
+ctOut = np.zeros((1, poolSize))
+
 fpath = "C:\\Users\\borde\\Downloads\\ECE 3970-001 - Capstone\\Main Code 11.25.24\\3-Branch-CNN-25-11.keras" # path to keras file
 cpath = "C:\\Users\\borde\\Downloads\\ECE 3970-001 - Capstone\\Main Code 11.25.24\\capstone_final_test.csv" # path to csv file
+newPath = "C:\\Users\\borde\\Downloads\\ECE 3970-001 - Capstone\\Main Code 11.25.24\\3-Branch-CNN-1-12_combined.keras" # path to conbined keras
 
 loaded_model = saving.load_model(fpath) # load the keras model into loaded_model
 # Model.summary(loaded_model) # load summary of loaded_model
@@ -32,8 +47,6 @@ for i in range(14): # iterate through the columns (AF3-AF4)
     for x in range(maxEle): # iterate through the 128 rows/markers
         buffer[i][x] = mycsv[(x + offset)][i + 4]
 # Now, we feed the buffer data into the neural network. We begin by loading the buffer data we got into a 9x9x128 3D-array
-
-# timeStart = time.time() # time to run for loops
 
 # Syntax: nnBuffer[set number (0-127)][row (0-8)][col (0-8)]
 for count in range(maxEle - 128):
@@ -82,18 +95,26 @@ for count in range(maxEle - 128):
         nnBuffer[i][1][5] = buffer[13][i + count] - n13
 
     newBuffer = nnBuffer.reshape(1, 9, 9, 128, 1) # reshape and feed into nn
-    # timeMid = time.time()
     modelResults = Model.predict(loaded_model, newBuffer)
-    # timeEnd = time.time()
-    nnOutput = np.append(nnOutput, modelResults, axis=0)
+    nnOutput = np.append(nnOutput, modelResults, axis=0) # ignore first two elements of array (they are 0s)
 
-print(nnOutput)
-np.savetxt('C:\\Users\\borde\\Downloads\\ECE 3970-001 - Capstone\\Main Code 11.25.24\\nnOutput.csv', nnOutput, delimiter=',', fmt='%d') # output results into csv file
+    # Pooling predicted results w/ thresholds. Will iterate a total of poolSize time per pooling and output the majority result
+    ctOut[0][ctFlag] = modelResults[0][1]
+    ctFlag += 1
+ 
+    if (ctFlag == poolSize):
+        for i in range(poolSize):
+            if (ctOut[0][i] >= threshold):
+                poolPos += 1
+            else:
+                poolNeg += 1
+        if (poolPos >= poolNeg):
+            print("\nOutputting: 1")
+            conn.send(1)
+            ctFlag = poolPos = poolNeg = 0
+        else:
+            print("\nInsufficient; Not Outputting")
+            ctFlag = poolPos = poolNeg = 0
 
-"""
-print("\nTime between Start and Mid: ")
-print(timeMid - timeStart)
-print("\nTime between Mid and End: ")
-print(timeEnd - timeMid)
-
-"""
+# print(nnOutput)
+# np.savetxt('C:\\Users\\borde\\Downloads\\ECE 3970-001 - Capstone\\Main Code 11.25.24\\nnOutput.csv', nnOutput, delimiter=',', fmt='%d') # output results into csv file
